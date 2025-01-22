@@ -14,7 +14,7 @@ const io = new Server(server, {
 const path = require('path')
 
 let users = new Map()
-
+let games = new Map()
 
 let targetWidth = 50;
 let targetHeigth = 50;
@@ -31,15 +31,10 @@ function randomNumber(max) {
     return Math.floor(Math.random() * max)
 }
 
-let game = {
-    targetPosition: {
-        x: 0,
-        y: 10
-    }
-}
+let initialGame = { x: 0, y: 10 }
 
 function randomPosition() {
-    game.targetPosition = {
+    return {
         x: randomNumber(limitTargetPosition.x),
         y: randomNumber(limitTargetPosition.y)
     }
@@ -60,14 +55,15 @@ app.get('/mad', (req, res) => {
 })
 
 io.on('connection', (socket) => {
-
-    users[socket.id] = { nick: 'user_in_lobby', points: 0 }
+    users[socket.id] = { nick: 'unknown_player', points: 0 }
+    games[socket.id] = initialGame
 
     io.emit("updatePlayers", users)
-    io.emit("gameState", game)
+    io.to(socket.id).emit("gameState", games[socket.id])
 
     socket.on('disconnect', () => {
         delete users[socket.id]
+        delete games[socket.id]
         io.emit("updatePlayers", users)
     })
 
@@ -77,18 +73,17 @@ io.on('connection', (socket) => {
 
     socket.on("shot", (data) => {
         if (
-            game.targetPosition.x < data.x && game.targetPosition.x + targetWidth > data.x
+            games[socket.id].x < data.x && games[socket.id].x + targetWidth > data.x
             &&
-            game.targetPosition.y < data.y && game.targetPosition.y + targetHeigth > data.y
+            games[socket.id].y < data.y && games[socket.id].y + targetHeigth > data.y
         ) {
-            randomPosition()
-            io.emit("gameState", game)
+            games[socket.id] = randomPosition();
             users[socket.id].points = users[socket.id].points + 1
+            io.to(socket.id).emit("gameState", games[socket.id])
+            io.to(socket.id).emit("playMusic", 'hit')
             io.emit("updatePlayers", users)
         }
     })
-
-
 
     socket.on("sendMessage", (msg) => {
         io.to(users[socket.id].room).emit("newMessage", { message: `(${users[socket.id].room}) ${users[socket.id].nick}: ` + msg });
