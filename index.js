@@ -3,18 +3,49 @@ const app = express()
 const http = require('http')
 const server = http.createServer(app)
 const { Server } = require("socket.io")
+
 const io = new Server(server, {
     cors: {
         origin: '*',
         methods: ['*']
     }
 })
+
 const path = require('path')
 
-let users = {}
-let rooms = {}
+let users = new Map()
 
-app.use('/static', express.static(path.join(__dirname, 'assets')))
+
+let targetWidth = 50;
+let targetHeigth = 50;
+
+let canvaWidth = 700;
+let canvaHeigth = 550;
+
+let limitTargetPosition = {
+    x: canvaWidth - targetWidth - 50,
+    y: canvaHeigth - targetHeigth - 50
+}
+
+function randomNumber(max) {
+    return Math.floor(Math.random() * max)
+}
+
+let game = {
+    targetPosition: {
+        x: 0,
+        y: 10
+    }
+}
+
+function randomPosition() {
+    game.targetPosition = {
+        x: randomNumber(limitTargetPosition.x),
+        y: randomNumber(limitTargetPosition.y)
+    }
+}
+
+app.use('/assets', express.static(path.join(__dirname, 'assets')))
 
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html')
@@ -30,31 +61,34 @@ app.get('/mad', (req, res) => {
 
 io.on('connection', (socket) => {
 
-    users[socket.id] = { nick: socket.id, points: 0 }
+    users[socket.id] = { nick: 'user_in_lobby', points: 0 }
 
     io.emit("updatePlayers", users)
-    io.emit("updateRooms", rooms)
+    io.emit("gameState", game)
 
     socket.on('disconnect', () => {
         delete users[socket.id]
-        delete rooms[socket.id]
-        io.emit("updatePlayers", users)
-        io.emit("updateRooms", rooms)
-    })
-
-    socket.on('updateScore', (msg) => {
-        users[socket.id].points = msg
         io.emit("updatePlayers", users)
     })
 
-    socket.on("createRoom", (nameRoom) => {
-        if (rooms[nameRoom]) {
-            return;
+    socket.on("getGame", () => {
+        io.to(socket.id).emit(game)
+    })
+
+    socket.on("shot", (data) => {
+        if (
+            game.targetPosition.x < data.x && game.targetPosition.x + targetWidth > data.x
+            &&
+            game.targetPosition.y < data.y && game.targetPosition.y + targetHeigth > data.y
+        ) {
+            randomPosition()
+            io.emit("gameState", game)
+            users[socket.id].points = users[socket.id].points + 1
+            io.emit("updatePlayers", users)
         }
-        socket.rooms.add(nameRoom)
-        rooms[nameRoom] = { owner: socket.id, createdAt: new Date().toISOString() }
-        io.emit("updateRooms", rooms)
     })
+
+
 
     socket.on("sendMessage", (msg) => {
         io.to(users[socket.id].room).emit("newMessage", { message: `(${users[socket.id].room}) ${users[socket.id].nick}: ` + msg });
@@ -66,12 +100,11 @@ io.on('connection', (socket) => {
     })
 
     socket.on("enterRoom", roomId => {
+        if (users[socket.id].room === roomId) return;
         socket.join(roomId)
         socket.leave(users[socket.id].room)
         users[socket.id].room = roomId
-        console.log(users);
-        io.to(roomId).emit("newUserInRoom", { user: 'Server', message: `(${roomId}) ${users[socket.id].nick} entrou na lobby` })
-
+        io.to(roomId).emit("newUserInRoom", { user: 'Server', message: `(${roomId}) ${users[socket.id].nick} entrou na sala` })
     })
 })
 
