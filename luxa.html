@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIM MAD</title>
+  </head>
+
+  <body>
+    <h1 class="title">DESAFIO 400 PEÇAS</h1>
+
+    <h4 id="score">Peças comidas: 0</h4>
+    <div class="game">
+      <div id="multiplayer-game" class="multiplayer-game"></div>
+
+      <div class="controls">
+        <p>Controls</p>
+
+        <div class="buttons">
+          <div class="button button-empty"></div>
+          <div class="button" onclick="move('up')">↑</div>
+          <div class="button button-empty"></div>
+          <div class="button" onclick="move('left')">←</div>
+          <div class="button" onclick="move('down')">↓</div>
+          <div class="button" onclick="move('right')">→</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <script>
+      const socket = io();
+
+      socket.on("connect", (msg) => {
+        console.log("conectado com o backend");
+      });
+
+      const eatingSound = new Audio("/static/sounds/pou-eating.mp3");
+      let multiplayerGame = document.getElementById("multiplayer-game");
+      let scoreText = document.getElementById("score");
+
+      let itemX = 4;
+      let itemsY = 3;
+      let score = 0;
+
+      let playerPosition = { x: 1, y: 1 };
+
+      const limits = { x: 3, y: 2 };
+
+      for (let y = 0; y < itemsY; y++) {
+        for (let x = 0; x < itemX; x++) {
+          let item = document.createElement("div");
+          item.id = `item-${x}-${y}`;
+          item.style.color = "red";
+          
+          // DEBUG ITEM
+          
+          // item.className = "item";
+          // item.innerHTML = `x${x}-y${y}`;
+          // item.style.border = '0.3px solid black';
+          // item.style.backgroundColor = 'white';
+           item.style.fontSize = "13px";
+          multiplayerGame.appendChild(item);
+        }
+      }
+
+      let fruitPosition = {
+        x: Math.floor(Math.random() * 3),
+        y: Math.floor(Math.random() * 2),
+      };
+
+
+      let fruitField = document.getElementById(
+        `item-${fruitPosition.x}-${fruitPosition.y}`
+      );
+
+      fruitField.style.backgroundImage = "url('/static/img/hot_ph.avif')";
+      fruitField.style.backgroundSize = "contain";
+      fruitField.style.backgroundRepeat = "no-repeat";
+
+      let playerPositionOnGame = document.getElementById(
+        `item-${playerPosition.x}-${playerPosition.y}`
+      );
+
+      playerPositionOnGame.style.backgroundImage =
+        "url('/static/img/xula.png')";
+      playerPositionOnGame.style.backgroundSize = "cover";
+      playerPositionOnGame.style.backgroundRepeat = "no-repeat";
+
+      function move(side) {
+        switch (side) {
+          case "right":
+            if (playerPosition.x < limits.x) {
+              let playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage = "";
+              playerPosition.x++;
+              playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage =
+                "url('/static/img/xula.png')";
+              playerPositionOnGame.style.backgroundSize = "contain";
+              playerPositionOnGame.style.backgroundRepeat = "no-repeat";
+            }
+            break;
+          case "left":
+            if (playerPosition.x > 0) {
+              let playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage = "";
+              playerPosition.x--;
+              playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage =
+                "url('/static/img/xula.png')";
+              playerPositionOnGame.style.backgroundSize = "contain";
+              playerPositionOnGame.style.backgroundRepeat = "no-repeat";
+            }
+            break;
+          case "up":
+            if (playerPosition.y > 0) {
+              let playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage = "";
+              playerPosition.y--;
+              playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage =
+                "url('/static/img/xula.png')";
+              playerPositionOnGame.style.backgroundSize = "contain";
+              playerPositionOnGame.style.backgroundRepeat = "no-repeat";
+            }
+            break;
+          case "down":
+            if (playerPosition.y < limits.y) {
+              let playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage = "";
+              playerPosition.y++;
+              playerPositionOnGame = document.getElementById(
+                `item-${playerPosition.x}-${playerPosition.y}`
+              );
+              playerPositionOnGame.style.backgroundImage =
+                "url('/static/img/xula.png')";
+              playerPositionOnGame.style.backgroundSize = "contain";
+              playerPositionOnGame.style.backgroundRepeat = "no-repeat";
+            }
+            break;
+        }
+        if (
+          playerPosition.y === fruitPosition.y &&
+          playerPosition.x === fruitPosition.x
+        ) {
+          console.log("bati");
+
+          eatingSound.currentTime = 0;
+          eatingSound.play();
+          score++;
+          if(score === 400) {
+            alert("ACABOU A COMIDA DO JAPA NIGHT")
+          }
+          scoreText.innerHTML = "Peças comidas: " + score;
+          fruitField.style.backgroundImage = "url('/static/img/xula.png')";
+          fruitField.style.backgroundSize = "contain";
+          fruitField.style.backgroundRepeat = "no-repeat";
+
+          fruitPosition = {
+            x: Math.floor(Math.random() * limits.x),
+            y: Math.floor(Math.random() * limits.y),
+          };
+
+          if(fruitPosition.x === playerPosition.x && fruitPosition.y === playerPosition.y) {
+            console.log('make a new position');
+            if(fruitPosition.x === limits.x) {
+              fruitPosition.x--
+            } else {
+              fruitPosition.x++
+            }
+          }
+
+          console.log(fruitPosition);
+
+          fruitField = document.getElementById(
+            `item-${fruitPosition.x}-${fruitPosition.y}`
+          );
+
+          fruitField.style.backgroundImage = "url('/static/img/hot_ph.avif')";
+          fruitField.style.backgroundSize = "contain";
+          fruitField.style.backgroundRepeat = "no-repeat";
+        }
+      }
+
+      window.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowRight") {
+          move("right");
+        }
+        if (e.key === "ArrowLeft") {
+          move("left");
+        }
+        if (e.key === "ArrowUp") {
+          move("up");
+        }
+        if (e.key === "ArrowDown") {
+          move("down");
+        }
+      });
+    </script>
+
+    <style>
+      body {
+        user-select: none;
+        font-family: "Courier New", Courier, monospace;
+        background-color: rgb(0, 0, 0);
+        color: white;
+      }
+
+      .multiplayer-game {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background-image: url('/static/img/japa.jpg');
+        background-position: center top; 
+        background-size: cover;
+        background-position: no-repeat;
+        width: 870px;
+        height: 870px;
+        margin: 0;
+        padding: 0;
+        gap: 0;
+
+        .item {
+          width: 80px;
+          height: 80px;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+      .game {
+        display: flex;
+        gap: 10px;
+
+        .buttons {
+          display: grid;
+          grid-template-areas: "1fr 1fr 1fr";
+
+          .button {
+            height: 30px;
+            width: 30px;
+            border: 1px solid gray;
+            display: flex;
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .button-empty {
+            border: none;
+          }
+        }
+      }
+    </style>
+  </body>
+</html>

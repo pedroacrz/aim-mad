@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIM MAD</title>
+</head>
+
+<body>
+  <header>
+    <h1 class="title">AIM MAD</h1>
+    <p id="players"></p>
+    <p>Ping: 5</p>
+  </header>
+
+  <div class="multiplayer-game"></div>
+
+  <div class="game">
+    <section id="board">
+      <div class="scoreboard">
+        <p id="score">Pontos: 0</p>
+        <p id="missing">Erros: 0</p>
+      </div>
+      <div class="timer">
+        <p id="timerText">Tempo: 0ms</p>
+        <button id="restart" class="restartButton">restart game</button>
+      </div>
+      <div id="ball"></div>
+      <div id="startGame">
+        <button id="startGameButton" onclick="startGame()">Start game</button>
+        <p id="counter"></p>
+        <div id="menu">
+          <p id="difficulty">Dificuldade:</p>
+          <button onclick="setDifficulty('easy')" class="menuButton">
+            Fácil
+          </button>
+          <button onclick="setDifficulty('medium')" class="menuButton">
+            Médio
+          </button>
+          <button onclick="setDifficulty('hard')" class="menuButton">
+            Difícil
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="aside" id="aside">
+      <div id="initialSession" class="initialSession">
+        <h2 class="nicknameText">Nickname (obrigatório): </h2>
+        <input class="inputNickname" maxlength="20" id="inputNickname" type="text" placeholder="Digite seu nickname" />
+      </div>
+      <div id="gameSession">
+
+        <div class="chat">
+          <p id="chatName" class="chatName">CHAT DA LOBBY</p>
+          <div id="chatMessage" class="chatMessage">
+          </div>
+          <input type="text" id="inputMessage" class="inputMessage" placeholder="Escreva aqui">
+        </div>
+
+        <div class="enterRoom">
+          <p class="playersOnline"></p>
+
+          <p class="textEnterRoom">Criar sala</p>
+          <div class="enterRoomInputAndButton">
+            <input type="text" class="inputEnterRoom" id="codeRoom" placeholder="Digite o código da sala"
+              maxlength="20">
+            <button class="buttonCreateRoom" id="buttonCreateRoom">Criar sala</button>
+          </div>
+        </div>
+
+        <div class="rooms">
+          <p class="headerText">Lista de salas:</p>
+          <div id="roomsList" class="roomsList" />
+        </div>
+      </div>
+    </aside>
+  </div>
+
+
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <script>
+    const socket = io()
+
+    socket.on("connect", (msg) => {
+      socket.emit("enterSession", 'global-chat')
+    })
+
+    socket.on("newUserInRoom", (msg) => {
+      appendMessage(msg)
+    })
+
+    socket.on("updatePlayers", (msg) => {
+      updatePlayers(msg)
+    })
+
+    function updateRooms(msg) {
+      roomsList.innerHTML = ''
+      let rooms = Object.entries(msg)
+      rooms.forEach((el) => {
+        let li = document.createElement('li')
+        let button = document.createElement('button')
+        button.textContent = 'ENTRAR'
+        button.onclick = () => {
+          socket.emit("enterSession", el[1])
+          roomId = el[1]
+          console.log(roomId);
+          if (roomId) {
+            board.style.display = "block";
+          }
+        }
+        li.innerHTML = el[1]
+        li.className = 'roomItem'
+        roomsList.appendChild(li)
+        roomsList.appendChild(li)
+        roomsList.appendChild(li)
+        li.appendChild(button)
+      })
+    }
+
+    socket.on("updateRooms", (msg) => {
+      updateRooms(msg)
+    })
+
+    socket.on("newMessage", msg => {
+      appendMessage(msg)
+    })
+
+    function appendMessage(msg) {
+      const div = document.createElement('div')
+      div.innerHTML = `${msg.message}`
+      div.style.color = 'black'
+      div.id = 'message-'
+      chatMessage.scrollTop = chatMessage.scrollHeight
+      chatMessage.appendChild(div)
+    }
+
+    const soundHit = new Audio("/static/sounds/hit.mp3");
+    const soundMiss = new Audio("/static/sounds/miss.mp3");
+    const soundCounter = new Audio("/static/sounds/counter.mp3");
+    const soundStartGame = new Audio("/static/sounds/startgame.mp3");
+
+    let positionBall = {
+      x: randomNumber(),
+      y: randomNumber(),
+    }
+
+    let difficulties = {
+      easy: {
+        width: 200,
+        height: 200,
+        maxMarginLeft: 400,
+        maxMarginTop: 400,
+      },
+      medium: {
+        width: 100,
+        height: 100,
+        maxMarginLeft: 500,
+        maxMarginTop: 500,
+      },
+      hard: {
+        width: 50,
+        height: 50,
+        maxMarginLeft: 550,
+        maxMarginTop: 550,
+      },
+    };
+
+    let timer = 0;
+    let gameOver = false;
+    let gameStart = false;
+    let gameFinish = false;
+    let score = 0;
+    let miss = 0;
+    let clickInGame = 0;
+    let difficulty = "easy";
+    let scoreText = document.getElementById("score");
+    let missText = document.getElementById("missing");
+    let ball = document.getElementById("ball");
+    let board = document.getElementById("board");
+    let counter = document.getElementById("counter");
+    let startGameButton = document.getElementById("startGameButton");
+    let difficultyText = document.getElementById("difficulty");
+    let restart = document.getElementById("restart");
+    let createSessionButton = document.getElementById("createSessionButton");
+    let inputNickname = document.getElementById("inputNickname");
+    let players = document.getElementById("players");
+    let initialSession = document.getElementById("initialSession");
+    let gameSession = document.getElementById("gameSession");
+    let multiplayerGame = document.getElementById("multiplayer-game");
+    let buttonCreateRoom = document.getElementById("buttonCreateRoom");
+    let roomsList = document.getElementById("roomsList");
+    let codeRoomInput = document.getElementById("codeRoom");
+    let chatMessage = document.getElementById("chatMessage");
+    let inputMessage = document.getElementById("inputMessage");
+
+    let roomId = ''
+
+    let inputMessageText = ''
+    inputMessage.onkeydown = (e) => {
+      if (inputNickname.value === '') {
+        alert("Para mandar mensagem você precisa escolher seu nickname")
+        return;
+      }
+      if (e.key === 'Enter') {
+        inputMessageText = '';
+        socket.emit("sendMessage", inputMessage.value)
+        inputMessage.value = ''
+        return;
+      }
+      inputMessageText = e.target.value
+    }
+
+    let codeRoom = ""
+
+    codeRoomInput.onkeyup = (e) => {
+      codeRoom = e.target.value
+    }
+
+    buttonCreateRoom.onclick = () => {
+      if (codeRoom === '') {
+        alert('digite o código da sala')
+        return;
+      }
+
+      socket.emit("createRoom", codeRoom)
+    }
+
+
+    function updatePlayers(playersOnline) {
+      playersOnline = Object.values(playersOnline);
+
+      let a = playersOnline.map((player, i) => {
+        return `Nickname: ${player.nick}`
+      })
+
+      players.innerHTML = `Jogadores Online: ${a.length}`
+      // players.innerHTML += a.join(',').replaceAll(',', "<br>")
+    }
+
+    let nickname = "";
+
+    function press(e) {
+      console.log(e);
+    }
+
+    inputNickname.onkeyup = (e) => {
+      nickname = e.target.value;
+      console.log(nickname.length);
+      if (nickname.length > 0) {
+        socket.emit("updateNickname", nickname);
+
+      } else {
+
+        setTimeout(() => {
+          gameSession.style.display = 'none'
+        }, 300);
+
+      }
+    };
+
+    restart.onclick = () => {
+      window.location.reload();
+    };
+
+    ball.style.backgroundColor = "blue";
+    ball.style.display = "none";
+
+    randomPosition();
+    setDifficulty(difficulty);
+
+    ball.onclick = function () {
+      score++;
+      scoreText.innerHTML = `Pontos: ${score}`;
+      l("i", `SCORE: ${score}`);
+      randomPosition();
+      playSoundHit(soundHit);
+      updatePoint(score);
+    };
+
+    function updatePoint(score) {
+      socket.emit('updateScore', score)
+    }
+
+    function setDifficulty(level) {
+      switch (level) {
+        case "easy":
+          difficulty = "easy";
+          ball.style.width = difficulties[difficulty].width + "px";
+          ball.style.height = difficulties[difficulty].height + "px";
+          difficultyText.innerHTML = "Dificuldade: Fácil";
+          break;
+        case "medium":
+          difficulty = "medium";
+          ball.style.width = difficulties[difficulty].width + "px";
+          ball.style.height = difficulties[difficulty].height + "px";
+          difficultyText.innerHTML = "Dificuldade: Médio";
+          break;
+        case "hard":
+          difficulty = "hard";
+          ball.style.width = difficulties[difficulty].width + "px";
+          ball.style.height = difficulties[difficulty].height + "px";
+          difficultyText.innerHTML = "Dificuldade: Difícil";
+          break;
+      }
+    }
+
+    function playSoundHit(sourceSound) {
+      sourceSound.currentTime = 0;
+      sourceSound.play();
+    }
+
+    board.onclick = () => {
+      if (!gameStart) return;
+      let oldMiss = miss;
+      clickInGame++;
+      miss = clickInGame - score;
+
+      if (oldMiss != miss) {
+        oldMiss = miss;
+        playSoundHit(soundMiss);
+      }
+      missText.innerHTML = `Erros: ${miss}`;
+
+      l("i", `Click in game ${clickInGame}`);
+    };
+
+    function endGame() {
+      gameStart = false;
+      gameFinish = true;
+      ball.style.display = "none";
+    }
+
+    function startGame() {
+      board.style.display = "block";
+      startGameButton.style.display = "none";
+      menu.style.display = "none";
+      gameSession.style.display = "block";
+
+      setTimeout(() => {
+        playSoundHit(soundCounter);
+        counter.innerHTML = "3";
+      }, 0);
+
+      setTimeout(() => {
+        playSoundHit(soundCounter);
+        counter.innerHTML = "2";
+      }, 1000);
+
+      setTimeout(() => {
+        playSoundHit(soundCounter);
+        counter.innerHTML = "1";
+      }, 2000);
+
+      setTimeout(() => {
+        playSoundHit(soundStartGame);
+        counter.innerHTML = "";
+      }, 3000);
+
+      setTimeout(() => {
+        gameStart = true;
+        ball.style.display = "block";
+        setInterval(() => {
+          if (gameStart) {
+            timer += 1;
+            timerText.innerHTML = "Tempo: " + timer + "ms";
+          }
+        }, 1);
+      }, 3000);
+    }
+
+    function randomPosition() {
+      ball.style.marginTop = randomNumber(
+        difficulties[difficulty].maxMarginTop
+      );
+      ball.style.marginLeft = randomNumber(
+        difficulties[difficulty].maxMarginLeft
+      );
+      l("i", `randomPosition: {x: ${positionBall.x}, y: ${positionBall.y} }`);
+    }
+
+    function randomNumber(max) {
+      return Math.floor(Math.random() * max) + "px";
+    }
+
+    function l(type, ...text) {
+      switch (type) {
+        case "i":
+          console.log("[INFO] ", ...text);
+          break;
+        case "e":
+          console.log("[ERROR] ", ...text);
+          break;
+        case "w":
+          console.log("[WARNING] ", ...text);
+          break;
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      user-select: none;
+      font-family: "Courier New", Courier, monospace;
+      background-color: rgb(0, 0, 0);
+      color: white;
+      margin: 0;
+      box-sizing: border-box;
+      padding: 0;
+    }
+
+
+    header {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      background: rgb(54, 53, 53);
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      p {
+        margin-top: 0;
+        margin-right: 10px;
+      }
+
+      .title {
+        margin-left: 10px;
+      }
+
+    }
+
+    ul {
+      padding: 0;
+
+      li {
+        list-style-type: none;
+      }
+    }
+
+    .inputNickname {
+      width: 300px;
+      height: 30px;
+      border-radius: 5px;
+      border: none;
+      margin-top: 10px;
+      padding: 5px;
+      font-size: 15px;
+    }
+
+    .initialSession {
+      .playersOnline {
+        font-size: 18px;
+      }
+    }
+
+    .scoreboard {
+      display: flex;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      gap: 10px;
+      padding: 0px;
+      line-height: 0;
+    }
+
+    .timer {
+      display: block;
+      text-align: center;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 0;
+    }
+
+    .game {
+      display: flex;
+    }
+
+    #gameSession {
+      display: block;
+
+      .chat {
+        background-color: white;
+        width: 300px;
+        margin-top: 20px;
+        border-radius: 5px;
+        height: 300px;
+        color: black;
+        padding-top: 10px;
+        position: relative;
+        padding-left: 5px;
+
+        .chatName {}
+
+        .chatMessage {
+          margin-top: 10px;
+          display: flex;
+          flex-direction: column;
+          height: 225px;
+          overflow: hidden;
+          overflow-y: scroll;
+          margin-left: 5px;
+        }
+
+        .inputMessage {
+          height: 30px;
+          border: 1px solid black;
+          border-radius: 5px;
+          width: calc(100% - 30px);
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          margin-left: 5px;
+          margin-bottom: 5px;
+        }
+      }
+
+      .buttonCreateRoom {
+        width: 100px;
+        height: 40px;
+        background-color: rgb(5, 5, 5);
+        border-radius: 10px;
+        border: 1px solid white;
+        cursor: pointer;
+        color: white;
+        margin-left: 10px;
+        font-size: 15px;
+      }
+
+      .inputEnterRoom {
+        width: 300px;
+        height: 30px;
+        border-radius: 5px;
+        border: none;
+        padding: 5px;
+        font-size: 15px;
+      }
+
+      .enterRoom {
+        margin-top: 50px;
+        font-size: 17px;
+
+        .enterRoomInputAndButton {
+          display: flex;
+
+        }
+      }
+
+      .rooms {
+        margin-top: 10px;
+
+        .headerText {
+          margin-top: 30px;
+        }
+
+        .roomsList {
+          width: 300px;
+
+          .roomItem {
+            height: 30px;
+            width: 300px;
+            border-bottom: 1px solid white;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+
+            button {
+              margin-left: 15px;
+              cursor: pointer;
+              width: 100px;
+              height: 20px;
+              background-color: rgb(5, 5, 5);
+              border-radius: 5px;
+              border: 1px solid white;
+              cursor: pointer;
+              color: white;
+              margin-left: 10px;
+              font-size: 15px;
+            }
+          }
+        }
+
+      }
+    }
+
+    #board {
+      background-image: url("/static/img/bg2.jpg");
+      background-size: cover;
+      background-repeat: no-repeat;
+      cursor: crosshair;
+      margin: 0 auto;
+      margin-top: 10px;
+      width: 600px;
+      height: 600px;
+      background-color: rgb(75, 75, 75);
+      padding: 10px;
+      position: relative;
+      display: none;
+
+      #ball {
+        width: 100px;
+        height: 100px;
+        background-color: green;
+        border-radius: 50%;
+        margin-top: 30px;
+        cursor: crosshair;
+        display: flex;
+        margin-top: 0px;
+        margin-left: 0px;
+        background-image: url("/static/img/mentirinha.png");
+        background-size: cover;
+      }
+
+      .restart {
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      #startGame {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translateX(-50%);
+
+        #startGameButton {
+          width: 100%;
+          height: 30px;
+          background-color: green;
+          border: none;
+          border-radius: 5px;
+          font-size: 15px;
+          font-weight: bolder;
+          text-transform: uppercase;
+          cursor: pointer;
+          color: white;
+        }
+
+        #counter {
+          font-size: 20px;
+        }
+      }
+
+      #menu {
+        display: block;
+
+        .menuButton {
+          background-color: white;
+          border: none;
+          width: 70px;
+          height: 20px;
+          border-radius: 5px;
+          color: black;
+          font-weight: 700;
+          cursor: pointer;
+        }
+      }
+    }
+  </style>
+</body>
+
+</html>
