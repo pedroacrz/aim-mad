@@ -17,7 +17,7 @@ let rooms = {}
 app.use('/static', express.static(path.join(__dirname, 'assets')))
 
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/mad.html')
+    res.sendFile(__dirname + '/index.html')
 })
 
 app.get('/luxa', (req, res) => {
