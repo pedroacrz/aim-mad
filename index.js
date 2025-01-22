@@ -55,6 +55,7 @@ app.get('/mad', (req, res) => {
 })
 
 io.on('connection', (socket) => {
+    initialGame = randomPosition()
     users[socket.id] = { nick: 'unknown_player', points: 0 }
     games[socket.id] = initialGame
 
