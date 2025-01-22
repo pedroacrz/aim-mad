@@ -31,7 +31,7 @@ function randomNumber(max) {
     return Math.floor(Math.random() * max)
 }
 
-let initialGame = { x: 0, y: 10 }
+let initialGame = randomPosition()
 
 function randomPosition() {
     return {
